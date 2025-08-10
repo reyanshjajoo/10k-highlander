@@ -60,6 +60,9 @@ bool runningIntake = false;
 bool runningBasket = false;
 bool outtake = false;
 bool midGoal = false;
+bool ignoreRoller = true;
+bool lowGoal = false;
+int lastClick = -1;
 
 void toggle(){
     while (true) {
@@ -68,23 +71,46 @@ void toggle(){
             if (runningBasket){
                 runningIntake = true;
             }
+            ignoreRoller = true;
             runningBasket = false;
+            lastClick = 1;
             pros::delay(400);
         }
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-            if (midGoal != true){
-                runningBasket = !runningBasket;
-                runningIntake = runningBasket;
-            }
             midGoal = false;
+            ignoreRoller = false;
+            lastClick = 3;
+            if (lastClick != 4){
+                if (midGoal != true || ignoreRoller){
+                    runningBasket = !runningBasket;
+                    runningIntake = runningBasket;
+                }
+                if (!runningIntake) {
+                    ignoreRoller = true;
+                }
+            }
             pros::delay(400);
         }
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-            if (midGoal != false){
-                runningBasket = !runningBasket;
-                runningIntake = runningBasket;
-            }
             midGoal = true;
+            ignoreRoller = false;
+            lastClick = 4;
+            if (lastClick != 3){
+                if (midGoal != false || ignoreRoller) {
+                    runningBasket = !runningBasket;
+                    runningIntake = runningBasket;
+                }
+                if (!runningIntake) {
+                    ignoreRoller = true;
+                }
+            }
+            pros::delay(400);
+        }
+        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
+            midGoal = false;
+            ignoreRoller = true;
+            lastClick = 5;
+            lowGoal = !lowGoal;
             pros::delay(400);
         }
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)){
@@ -92,6 +118,7 @@ void toggle(){
         } else {
             outtake = false;
         }
+
         pros::delay(20);
     }
 }
@@ -99,32 +126,40 @@ void toggle(){
 void intake_control() {
     int hoodVel = 600;
     while (true) {
-        if (runningIntake && !outtake && !runningBasket) {
+
+        
+        if (runningIntake && !outtake && !runningBasket && !lowGoal) {
             firstStageIntake.move_velocity(600);
             hood.move_velocity(600);
             basketRoller.brake();
-        } else if (outtake && !runningBasket) {
+        } else if (outtake && !runningBasket && !lowGoal) {
             firstStageIntake.move_velocity(-600);
             hood.move_velocity(-600);
             basketRoller.brake();
-        } else if (!runningIntake && !outtake && !runningBasket) {
+        } else if (!runningIntake && !outtake && !runningBasket && !lowGoal) {
             firstStageIntake.move_velocity(0);
             hood.move_velocity(0);
             basketRoller.brake();
         }
 
-        if (runningBasket && runningIntake && !outtake && !midGoal) {
+        if (runningBasket && runningIntake && !outtake && !midGoal && !lowGoal) {
             firstStageIntake.move_velocity(600);
             basketRoller.move_velocity(200);
             hood.move_velocity(600);
-        } else if (runningBasket && runningIntake && !outtake && midGoal) {
+        } else if (runningBasket && runningIntake && !outtake && midGoal && !lowGoal) {
             basketRoller.move_velocity(200);
-            firstStageIntake.move_velocity(600);
+            firstStageIntake.move_velocity(0);
             hood.move_velocity(-600);
-        } else if (runningBasket && outtake) {
+        } else if (runningBasket && outtake && !lowGoal) {
             basketRoller.move_velocity(-200);
             firstStageIntake.move_velocity(-600);
             hood.move_velocity(-600);
+        }
+        
+        if (lowGoal) {
+            basketRoller.move_velocity(-200);
+            firstStageIntake.move_velocity(-600);
+            hood.move_velocity(0);
         }
 
         
