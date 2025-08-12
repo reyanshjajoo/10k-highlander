@@ -55,114 +55,128 @@ lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel
 
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors);
 
-// intake bools
-bool runningIntake = false;
-bool runningBasket = false;
-bool outtake = false;
-bool midGoal = false;
-bool ignoreRoller = true;
-bool lowGoal = false;
-int lastClick = -1;
+pros::ADIDigitalOut basket('A');
+bool basketExtended = false;
 
-void toggle(){
+pros::ADIDigitalOut matchload('B');
+bool matchloadOn = false;
+
+enum class Mode {
+    Idle,
+    IntakeToBasket,
+    ScoreTop,
+    ScoreMid,
+    ScoreLow,
+    Unjam
+};
+
+Mode currentMode = Mode::Idle;
+
+void handleL1Press() { // Intake to basket
+    currentMode = (currentMode == Mode::IntakeToBasket) ? Mode::Idle : Mode::IntakeToBasket;
+}
+
+void handleR1Press() { // Score top goal
+    currentMode = (currentMode == Mode::ScoreTop) ? Mode::Idle : Mode::ScoreTop;
+}
+
+void handleR2Press() { // Score mid goal
+    currentMode = (currentMode == Mode::ScoreMid) ? Mode::Idle : Mode::ScoreMid;
+}
+
+void handleBPress() { // Score low goal
+    currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow;
+}
+
+void handleL2Held(bool pressed) { // Unjam
+    if (pressed) {
+        currentMode = Mode::Unjam;
+    } else if (currentMode == Mode::Unjam) {
+        currentMode = Mode::Idle;
+    }
+}
+
+void checkButtons() {
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) handleL1Press();
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) handleR1Press();
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) handleR2Press();
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))  handleBPress();
+
+    handleL2Held(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2));
+}
+
+void intakeControl() {
     while (true) {
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            runningIntake = !runningIntake;
-            if (runningBasket){
-                runningIntake = true;
-            }
-            ignoreRoller = true;
-            runningBasket = false;
-            lastClick = 1;
-            pros::delay(400);
-        }
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
-            midGoal = false;
-            ignoreRoller = false;
-            lastClick = 3;
-            if (lastClick != 4){
-                if (midGoal != true || ignoreRoller){
-                    runningBasket = !runningBasket;
-                    runningIntake = runningBasket;
-                }
-                if (!runningIntake) {
-                    ignoreRoller = true;
-                }
-            }
-            pros::delay(400);
-        }
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
-            midGoal = true;
-            ignoreRoller = false;
-            lastClick = 4;
-            if (lastClick != 3){
-                if (midGoal != false || ignoreRoller) {
-                    runningBasket = !runningBasket;
-                    runningIntake = runningBasket;
-                }
-                if (!runningIntake) {
-                    ignoreRoller = true;
-                }
-            }
-            pros::delay(400);
-        }
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)) {
-            midGoal = false;
-            ignoreRoller = true;
-            lastClick = 5;
-            lowGoal = !lowGoal;
-            pros::delay(400);
-        }
-        if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)){
-            outtake = true;
-        } else {
-            outtake = false;
-        }
+        switch (currentMode) {
+            case Mode::Idle:
+                firstStageIntake.move_velocity(0);
+                hood.move_velocity(0);
+                basketRoller.brake();
+                break;
 
+            case Mode::IntakeToBasket:
+                firstStageIntake.move_velocity(600);
+                hood.move_velocity(600);
+                basketRoller.brake();
+                basketExtended = false;
+                basket.set_value(basketExtended);
+                break;
+
+            case Mode::ScoreTop:
+                firstStageIntake.move_velocity(600);
+                basketRoller.move_velocity(200);
+                hood.move_velocity(600);
+                basketExtended = true;
+                basket.set_value(basketExtended);
+                break;
+
+            case Mode::ScoreMid:
+                basketRoller.move_velocity(200);
+                firstStageIntake.move_velocity(0);
+                hood.move_velocity(-600);
+                basketExtended = true;
+                basket.set_value(basketExtended);
+                break;
+
+            case Mode::ScoreLow:
+                basketRoller.move_velocity(200);
+                firstStageIntake.move_velocity(-600);
+                hood.move_velocity(0);
+                basketExtended = true;
+                basket.set_value(basketExtended);
+                break;
+
+            case Mode::Unjam:
+                basketRoller.move_velocity(-200);
+                firstStageIntake.move_velocity(-600);
+                hood.move_velocity(-600);
+                basketExtended = false;
+                basket.set_value(basketExtended);
+                break;
+        }
         pros::delay(20);
     }
 }
 
-void intake_control() {
-    int hoodVel = 600;
+void toggleTask() {
     while (true) {
+        checkButtons();
+        pros::delay(20);
+    }
+}
 
-        
-        if (runningIntake && !outtake && !runningBasket && !lowGoal) {
-            firstStageIntake.move_velocity(600);
-            hood.move_velocity(600);
-            basketRoller.brake();
-        } else if (outtake && !runningBasket && !lowGoal) {
-            firstStageIntake.move_velocity(-600);
-            hood.move_velocity(-600);
-            basketRoller.brake();
-        } else if (!runningIntake && !outtake && !runningBasket && !lowGoal) {
-            firstStageIntake.move_velocity(0);
-            hood.move_velocity(0);
-            basketRoller.brake();
+void pneumaticControl() {
+    while (true) {
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
+            basketExtended = !basketExtended;
+            basket.set_value(basketExtended);
         }
 
-        if (runningBasket && runningIntake && !outtake && !midGoal && !lowGoal) {
-            firstStageIntake.move_velocity(600);
-            basketRoller.move_velocity(200);
-            hood.move_velocity(600);
-        } else if (runningBasket && runningIntake && !outtake && midGoal && !lowGoal) {
-            basketRoller.move_velocity(200);
-            firstStageIntake.move_velocity(0);
-            hood.move_velocity(-600);
-        } else if (runningBasket && outtake && !lowGoal) {
-            basketRoller.move_velocity(-200);
-            firstStageIntake.move_velocity(-600);
-            hood.move_velocity(-600);
-        }
-        
-        if (lowGoal) {
-            basketRoller.move_velocity(-200);
-            firstStageIntake.move_velocity(-600);
-            hood.move_velocity(0);
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+            matchloadOn = !matchloadOn;
+            matchload.set_value(matchloadOn);
         }
 
-        
         pros::delay(20);
     }
 }
@@ -190,8 +204,9 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
-    pros::Task intake_task(intake_control);
-    pros::Task toggle_task(toggle);
+    pros::Task intake_task(intakeControl);
+    pros::Task toggle_task(toggleTask);
+    pros::Task pneumatic_task(pneumaticControl);
     while (true) {
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
