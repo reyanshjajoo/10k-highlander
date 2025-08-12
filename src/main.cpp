@@ -167,12 +167,7 @@ void toggleTask() {
 
 void pneumaticControl() {
     while (true) {
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
-            basketExtended = !basketExtended;
-            basket.set_value(basketExtended);
-        }
-
-        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
             matchloadOn = !matchloadOn;
             matchload.set_value(matchloadOn);
         }
