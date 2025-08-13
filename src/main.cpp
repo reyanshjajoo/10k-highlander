@@ -8,7 +8,7 @@ pros::MotorGroup leftMotors({-11, -12, -13}, pros::MotorGearset::blue);
 pros::MotorGroup rightMotors({18, 19, 20}, pros::MotorGearset::blue);
 
 pros::Motor firstStageIntake(-17, pros::MotorGearset::blue);
-pros::Motor basketRoller(2, pros::MotorGearset::green);
+pros::Motor basketRoller(2, pros::MotorGearset::blue);
 pros::Motor hood(10, pros::MotorGearset::blue);
 
 pros::Imu imu(14);
@@ -67,7 +67,8 @@ enum class Mode {
     ScoreTop,
     ScoreMid,
     ScoreLow,
-    Unjam
+    Unjam,
+    BottomLoad
 };
 
 Mode currentMode = Mode::Idle;
@@ -88,6 +89,10 @@ void handleBPress() { // Score low goal
     currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow;
 }
 
+void handleLeftPress() { // Bottom load
+    currentMode = (currentMode == Mode::BottomLoad) ? Mode::Idle : Mode::BottomLoad;
+}
+
 void handleL2Held(bool pressed) { // Unjam
     if (pressed) {
         currentMode = Mode::Unjam;
@@ -101,6 +106,7 @@ void checkButtons() {
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) handleR1Press();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) handleR2Press();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))  handleBPress();
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) handleLeftPress();
 
     handleL2Held(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2));
 }
@@ -124,14 +130,14 @@ void intakeControl() {
 
             case Mode::ScoreTop:
                 firstStageIntake.move_velocity(600);
-                basketRoller.move_velocity(200);
+                basketRoller.move_velocity(600);
                 hood.move_velocity(600);
                 basketExtended = true;
                 basket.set_value(basketExtended);
                 break;
 
             case Mode::ScoreMid:
-                basketRoller.move_velocity(200);
+                basketRoller.move_velocity(600);
                 firstStageIntake.move_velocity(0);
                 hood.move_velocity(-600);
                 basketExtended = true;
@@ -139,7 +145,7 @@ void intakeControl() {
                 break;
 
             case Mode::ScoreLow:
-                basketRoller.move_velocity(200);
+                basketRoller.move_velocity(600);
                 firstStageIntake.move_velocity(-600);
                 hood.move_velocity(0);
                 basketExtended = true;
@@ -147,9 +153,17 @@ void intakeControl() {
                 break;
 
             case Mode::Unjam:
-                basketRoller.move_velocity(-200);
+                basketRoller.move_velocity(-600);
                 firstStageIntake.move_velocity(-600);
                 hood.move_velocity(-600);
+                basketExtended = false;
+                basket.set_value(basketExtended);
+                break;
+            
+            case Mode::BottomLoad:
+                firstStageIntake.move_velocity(600);
+                hood.move_velocity(0);
+                basketRoller.move_velocity(-600);
                 basketExtended = false;
                 basket.set_value(basketExtended);
                 break;
