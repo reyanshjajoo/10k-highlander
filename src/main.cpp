@@ -12,7 +12,7 @@ pros::Motor basketRoller(2, pros::MotorGearset::blue);
 pros::Motor hood(10, pros::MotorGearset::blue);
 
 pros::Imu imu(14);
-
+//8 and 9 for optical 
 
 // drivetrain settings
 lemlib::Drivetrain drivetrain(&leftMotors,
@@ -55,6 +55,67 @@ lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel
 
 lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors);
 
+
+
+enum class BallColor {
+    Red,
+    Blue,
+    Unknown
+};
+
+
+pros::Optical optical(8); 
+pros::Optical optical2(9); // second optical sensor, if needed
+BallColor targetColor = BallColor::Red; // default target color (one we want to eject)
+/*
+BallColor identifyColor(){
+    pros::c::optical_rgb_s_t color = optical.get_rgb();
+    if (color.red > color.blue) {
+        return BallColor::Red;
+    } else if (color.blue > color.red) {
+        return BallColor::Blue;
+    } else {
+        return BallColor::Unknown;
+    }
+}
+*/
+struct HueRange {
+    double min;
+    double max;
+    bool contains(double hue) const {
+        if (min < max) {
+            return hue >= min && hue <= max;
+        } else {
+            return hue >= min || hue <= max;
+        }
+    }
+};
+
+
+const HueRange RED_RANGE {1.0, 9.0};
+const HueRange BLUE_RANGE {210.0, 270.0};
+BallColor ballColor = BallColor::Unknown;//initially
+
+BallColor identifyColor() {
+    double hue1 = optical.get_hue();
+    double hue2 = optical2.get_hue();
+    if (RED_RANGE.contains(hue1) || RED_RANGE.contains(hue2)) {
+        return BallColor::Red;
+    }
+    if (BLUE_RANGE.contains(hue1) || BLUE_RANGE.contains(hue2)) {
+        return BallColor::Blue;
+    }
+    return BallColor::Unknown;
+}
+
+void colorSortTask(){
+    while (true){
+        ballColor = identifyColor();
+        pros::delay(20);
+    }
+}
+
+
 pros::ADIDigitalOut basket('A');
 bool basketExtended = false;
 
@@ -68,14 +129,26 @@ enum class Mode {
     ScoreMid,
     ScoreLow,
     Unjam,
-    BottomLoad
+    BottomLoad,
+    ejectBall 
 };
 
 Mode currentMode = Mode::Idle;
 
-void handleL1Press() { // Intake to basket
-    currentMode = (currentMode == Mode::IntakeToBasket) ? Mode::Idle : Mode::IntakeToBasket;
+void handleL1Press() {
+    if (ballColor == targetColor) {
+        // If we see the target color (red), go to eject mode
+        currentMode = Mode::ejectBall;
+    } else {
+        // Otherwise toggle Intake <-> Idle
+        if (currentMode == Mode::IntakeToBasket) {
+            currentMode = Mode::Idle;
+        } else {
+            currentMode = Mode::IntakeToBasket;
+        }
+    }
 }
+
 
 void handleR1Press() { // Score top goal
     currentMode = (currentMode == Mode::ScoreTop) ? Mode::Idle : Mode::ScoreTop;
@@ -118,22 +191,30 @@ void intakeControl() {
                 firstStageIntake.move_velocity(0);
                 hood.move_velocity(0);
                 basketRoller.brake();
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
                 break;
 
             case Mode::IntakeToBasket:
+                if (ballColor == targetColor) {
+                    currentMode = Mode::ejectBall;
+                    break;
+                }
                 firstStageIntake.move_velocity(600);
                 hood.move_velocity(600);
                 basketRoller.brake();
                 basketExtended = false;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
                 break;
 
             case Mode::ScoreTop:
                 firstStageIntake.move_velocity(600);
                 basketRoller.move_velocity(600);
                 hood.move_velocity(600);
+                pros::delay(500);
                 basketExtended = true;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
                 break;
 
             case Mode::ScoreMid:
@@ -142,6 +223,7 @@ void intakeControl() {
                 hood.move_velocity(-600);
                 basketExtended = true;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
                 break;
 
             case Mode::ScoreLow:
@@ -150,6 +232,7 @@ void intakeControl() {
                 hood.move_velocity(0);
                 basketExtended = true;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
                 break;
 
             case Mode::Unjam:
@@ -158,6 +241,7 @@ void intakeControl() {
                 hood.move_velocity(-600);
                 basketExtended = false;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
                 break;
             
             case Mode::BottomLoad:
@@ -166,6 +250,16 @@ void intakeControl() {
                 basketRoller.move_velocity(-600);
                 basketExtended = false;
                 basket.set_value(basketExtended);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+                break;
+
+            case Mode::ejectBall:
+                firstStageIntake.move_velocity(600);
+                hood.move_velocity(-600);
+                basketRoller.move_velocity(0);
+                chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+                pros::delay(300);
+                currentMode = Mode::IntakeToBasket;
                 break;
         }
         pros::delay(20);
@@ -192,6 +286,10 @@ void pneumaticControl() {
 
 void initialize() {
     pros::lcd::initialize();
+    optical.set_led_pwm(100);
+    optical2.set_led_pwm(100);
+    optical.set_integration_time(50);
+    optical2.set_integration_time(50);
     chassis.calibrate();
     basketRoller.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     pros::Task screenTask([&]() {
@@ -199,7 +297,8 @@ void initialize() {
             pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
-
+            pros::lcd::print(3, "hue Color: %f", optical.get_hue());
+            pros::lcd::print(4, "Ball Color: %s", ballColor == BallColor::Red ? "Red" : (ballColor == BallColor::Blue ? "Blue" : "Unknown"));
 			lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
             pros::delay(50);
         }
@@ -216,11 +315,14 @@ void opcontrol() {
     pros::Task intake_task(intakeControl);
     pros::Task toggle_task(toggleTask);
     pros::Task pneumatic_task(pneumaticControl);
+    pros::Task color_task(colorSortTask);
     while (true) {
+        // -- TANK DRIVE --
         int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
 
         chassis.tank(leftY, rightY);
+
         pros::delay(10);
     }
 }
