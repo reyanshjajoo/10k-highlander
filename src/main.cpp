@@ -61,8 +61,7 @@ enum class BallColor
 
 // pros::Optical optical(8);   // <--- DISABLED SENSOR
 pros::Optical optical2(9);              // second optical sensor
-BallColor targetColor = BallColor::Red; // default target color (color to eject)
-bool colorSortEnabled = true;
+BallColor targetColor = BallColor::Red; // default target color
 
 struct HueRange
 {
@@ -143,11 +142,20 @@ Mode currentMode = Mode::Idle;
 
 void handleL1Press()
 {
-    if (colorSortEnabled && ballColor == targetColor) {
+    if (ballColor == targetColor)
+    {
         currentMode = Mode::ejectBall;
-    } else {
-        if (currentMode == Mode::IntakeToBasket) currentMode = Mode::Idle;
-        else currentMode = Mode::IntakeToBasket;
+    }
+    else
+    {
+        if (currentMode == Mode::IntakeToBasket)
+        {
+            currentMode = Mode::Idle;
+        }
+        else
+        {
+            currentMode = Mode::IntakeToBasket;
+        }
     }
 }
 
@@ -160,21 +168,13 @@ void handleR2Press()
 void handleBPress()
 { currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow; }
 
-void handleRightPress()
+void handleLeftPress()
 { currentMode = (currentMode == Mode::BottomLoad) ? Mode::Idle : Mode::BottomLoad; }
 
 void handleL2Held(bool pressed)
 {
     if (pressed) currentMode = Mode::Unjam;
     else if (currentMode == Mode::Unjam) currentMode = Mode::Idle;
-}
-
-void handleLeftPress()
-{
-    colorSortEnabled = !colorSortEnabled;
-    controller.rumble(colorSortEnabled ? "." : "..");
-    // optical.set_led_pwm(colorSortEnabled ? 100 : 0);
-    optical2.set_led_pwm(colorSortEnabled ? 100 : 0);
 }
 
 void checkButtons()
@@ -187,8 +187,6 @@ void checkButtons()
         handleR2Press();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         handleBPress();
-    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
-        handleRightPress();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
         handleLeftPress();
 
@@ -209,7 +207,7 @@ void intakeControl()
             break;
 
         case Mode::IntakeToBasket:
-            if (colorSortEnabled && ballColor == targetColor) { 
+            if (ballColor == targetColor) {
                 currentMode = Mode::ejectBall;
                 break;
             }
