@@ -140,6 +140,42 @@ enum class Mode
     ejectBall
 };
 
+enum class Auton
+{
+    AWP,
+    Left,
+    Right,
+    LeftElim,
+    RightElim,
+    Skills
+};
+
+std::unordered_map<int, Auton> createAutonMap() {
+    return {
+        {1, Auton::AWP},
+        {2, Auton::Left},
+        {3, Auton::Right},
+        {4, Auton::LeftElim},
+        {5, Auton::RightElim},
+        {6, Auton::Skills}
+    };
+}
+
+const char* autonToString(Auton auton) {
+    switch (auton) {
+        case Auton::AWP:       return "AWP";
+        case Auton::Left:      return "Left";
+        case Auton::Right:     return "Right";
+        case Auton::LeftElim:  return "LeftElim";
+        case Auton::RightElim: return "RightElim";
+        case Auton::Skills:    return "Skills";
+        default:               return "Unknown";
+    }
+}
+
+
+std::unordered_map<int, Auton> autonMap = createAutonMap();
+
 Mode currentMode = Mode::Idle;
 
 void handleL1Press()
@@ -182,6 +218,30 @@ void handleL2Held(bool pressed)
 {
     if (pressed) currentMode = Mode::Unjam;
     else if (currentMode == Mode::Unjam) currentMode = Mode::Idle;
+}
+
+int autonCount = 1;
+
+void on_center_button() {
+    autonCount += 1;
+    if (autonCount == 7){
+        autonCount = 1;
+    }
+}
+
+void on_right_button() {
+    autonCount -= 1;
+    if (autonCount == 0){
+        autonCount = 6;
+    }
+}
+
+void on_left_button() {
+    if (targetColor == BallColor::Red) {
+        targetColor = BallColor::Blue;
+    } else {
+        targetColor = BallColor::Red;
+    }
 }
 
 void checkButtons()
@@ -315,10 +375,48 @@ void displayStatusTask() {
     }
 }
 
+void AWP()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(0, 24, 3000);
+}
+
+void left()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(24, 0, 3000);
+}
+
+void right()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(-24, 0, 3000);
+}
+
+void leftElim()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(24, 24, 3000);
+}
+
+void rightElim()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(-24, -24, 3000);
+}
+
+void skills()
+{
+    chassis.setPose({0, 0, 0});
+    chassis.moveToPoint(0, -24, 3000);
+}
 
 void initialize()
 {
     pros::lcd::initialize();
+    pros::lcd::register_btn1_cb(on_center_button);
+    pros::lcd::register_btn2_cb(on_left_button); 
+    pros::lcd::register_btn0_cb(on_right_button); 
     controller.clear();
     // optical.set_led_pwm(100);
     optical2.set_led_pwm(100);
@@ -333,9 +431,11 @@ void initialize()
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
             // pros::lcd::print(3, "Hue Color 1: %f", optical.get_hue());
-            pros::lcd::print(4, "Hue Color 2: %f", optical2.get_hue());
+            pros::lcd::print(3, "Hue Color 2: %f", optical2.get_hue());
             // pros::lcd::print(5, "Proximity 1: %d", optical.get_proximity());
-            pros::lcd::print(6, "Proximity 2: %d", optical2.get_proximity());
+            pros::lcd::print(4, "Proximity 2: %d", optical2.get_proximity());
+            pros::lcd::print(5, "Auton: %s", autonToString(autonMap[autonCount]));
+            pros::lcd::set_text(6, targetColor == BallColor::Red ? "blue color" : "red color");
             pros::lcd::print(7, "Ball Color: %s", ballColor == BallColor::Red ? "Red" : (ballColor == BallColor::Blue ? "Blue" : "Unknown"));
 			lemlib::telemetrySink()->info("Chassis pose: {}", chassis.getPose());
             pros::delay(50);
@@ -344,7 +444,20 @@ void initialize()
 
 void disabled() {}
 void competition_initialize() {}
-void autonomous() {}
+void autonomous() {
+    auto it = autonMap.find(autonCount);
+    Auton selected = (it != autonMap.end()) ? it->second : Auton::AWP;
+
+    switch (selected) {
+        case Auton::AWP:       AWP();       break;
+        case Auton::Left:      left();      break;
+        case Auton::Right:     right();     break;
+        case Auton::LeftElim:  leftElim();  break;
+        case Auton::RightElim: rightElim(); break;
+        case Auton::Skills:    skills();    break;
+        default:               AWP();       break;
+    }
+}
 
 void opcontrol() {
     pros::Task intake_task(intakeControl);
