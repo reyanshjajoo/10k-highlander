@@ -21,9 +21,9 @@ lemlib::Drivetrain drivetrain(&leftMotors,
                               2 // horizontal drift
 );
 
-lemlib::ControllerSettings linearController(10,  // kP
+lemlib::ControllerSettings linearController(5.4,  // kP
                                             0,   // kI
-                                            3,   // kD
+                                            2,   // kD
                                             3,   // anti windup
                                             1,   // small error range, in inches
                                             100, // small error range timeout, in milliseconds
@@ -32,10 +32,10 @@ lemlib::ControllerSettings linearController(10,  // kP
                                             20   // maximum acceleration (slew)
 );
 
-lemlib::ControllerSettings angularController(2,   // kP
+lemlib::ControllerSettings angularController(1.04,   // kP
                                              0,   // kI
-                                             10,  // kD
-                                             3,   // anti windup
+                                             6,  // kD
+                                             0,   // anti windup
                                              1,   // small error range, in degrees
                                              100, // small error range timeout, in milliseconds
                                              3,   // large error range, in degrees
@@ -299,7 +299,7 @@ void intakeControl()
 
         case Mode::ScoreMid:
             basketRoller.move_velocity(600);
-            firstStageIntake.move_velocity(0);
+            firstStageIntake.move_velocity(600);
             hood.move_velocity(-600);
             basketExtended = true;
             basket.set_value(basketExtended);
