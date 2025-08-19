@@ -59,6 +59,8 @@ enum class BallColor
     Unknown
 };
 
+bool colorSort = true;
+
 // pros::Optical optical(8);   // <--- DISABLED SENSOR
 pros::Optical optical2(9);              // second optical sensor
 BallColor targetColor = BallColor::Red; // default target color
@@ -91,7 +93,7 @@ BallColor identifyColor() {
     int prox2 = optical2.get_proximity();
 
     // if (prox1 < PROX_THRESHOLD && prox2 < PROX_THRESHOLD) {
-    if (prox2 < PROX_THRESHOLD) {
+    if (prox2 < PROX_THRESHOLD || !colorSort) {
         return BallColor::Unknown;
     }
 
@@ -168,8 +170,13 @@ void handleR2Press()
 void handleBPress()
 { currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow; }
 
-void handleLeftPress()
+void handleRightPress()
 { currentMode = (currentMode == Mode::BottomLoad) ? Mode::Idle : Mode::BottomLoad; }
+
+void handleLeftPress(){ 
+    colorSort = !colorSort;
+    controller.rumble(".");
+}
 
 void handleL2Held(bool pressed)
 {
@@ -187,9 +194,10 @@ void checkButtons()
         handleR2Press();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B))
         handleBPress();
+    if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT))
+        handleRightPress();
     if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT))
         handleLeftPress();
-
     handleL2Held(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2));
 }
 
@@ -223,7 +231,7 @@ void intakeControl()
             firstStageIntake.move_velocity(600);
             basketRoller.move_velocity(600);
             hood.move_velocity(600);
-            pros::delay(500);
+            pros::delay(250);
             basketExtended = true;
             basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
@@ -240,7 +248,7 @@ void intakeControl()
 
         case Mode::ScoreLow:
             basketRoller.move_velocity(600);
-            firstStageIntake.move_velocity(-300);
+            firstStageIntake.move_velocity(-400);
             hood.move_velocity(0);
             basketExtended = true;
             basket.set_value(basketExtended);
@@ -300,9 +308,18 @@ void pneumaticControl()
     }
 }
 
+void displayStatusTask() {
+    while (true) {
+        controller.set_text(0, 0, colorSort ? "Color Sort: ON " : "Color Sort: OFF");
+        pros::delay(20);
+    }
+}
+
+
 void initialize()
 {
     pros::lcd::initialize();
+    controller.clear();
     // optical.set_led_pwm(100);
     optical2.set_led_pwm(100);
     // optical.set_integration_time(50);
@@ -334,11 +351,12 @@ void opcontrol() {
     pros::Task toggle_task(toggleTask);
     pros::Task pneumatic_task(pneumaticControl);
     pros::Task color_task(colorSortTask);
+    pros::Task displayTask(displayStatusTask);
 
     while (true) {
         int leftY  = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-
+        
         chassis.tank(leftY, rightY);
 
         pros::delay(10);
