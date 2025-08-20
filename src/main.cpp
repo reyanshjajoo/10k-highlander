@@ -21,7 +21,7 @@ lemlib::Drivetrain drivetrain(&leftMotors,
                               2 // horizontal drift
 );
 
-lemlib::ControllerSettings linearController(5.4,  // kP
+lemlib::ControllerSettings linearController(5.4, // kP
                                             0,   // kI
                                             2,   // kD
                                             3,   // anti windup
@@ -32,15 +32,15 @@ lemlib::ControllerSettings linearController(5.4,  // kP
                                             20   // maximum acceleration (slew)
 );
 
-lemlib::ControllerSettings angularController(1.04,   // kP
-                                             0,   // kI
-                                             6,  // kD
-                                             0,   // anti windup
-                                             1,   // small error range, in degrees
-                                             100, // small error range timeout, in milliseconds
-                                             3,   // large error range, in degrees
-                                             500, // large error range timeout, in milliseconds
-                                             0    // maximum acceleration (slew)
+lemlib::ControllerSettings angularController(1.04, // kP
+                                             0,    // kI
+                                             6,    // kD
+                                             0,    // anti windup
+                                             1,    // small error range, in degrees
+                                             100,  // small error range timeout, in milliseconds
+                                             3,    // large error range, in degrees
+                                             500,  // large error range timeout, in milliseconds
+                                             0     // maximum acceleration (slew)
 );
 
 lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel
@@ -63,7 +63,7 @@ bool colorSort = true;
 
 // pros::Optical optical(8);   // <--- DISABLED SENSOR
 pros::Optical optical2(9);              // second optical sensor
-BallColor targetColor = BallColor::Red; // default target color
+BallColor targetColor = BallColor::Blue; // default target color
 
 struct HueRange
 {
@@ -86,14 +86,16 @@ const HueRange RED_RANGE{0.0, 26.0};
 const HueRange BLUE_RANGE{200.0, 250.0};
 BallColor ballColor = BallColor::Unknown; // initially
 
-BallColor identifyColor() {
-    const int PROX_THRESHOLD = 80;
+BallColor identifyColor()
+{
+    const int PROX_THRESHOLD = 60;
 
     // int prox1 = optical.get_proximity();
     int prox2 = optical2.get_proximity();
 
     // if (prox1 < PROX_THRESHOLD && prox2 < PROX_THRESHOLD) {
-    if (prox2 < PROX_THRESHOLD || !colorSort) {
+    if (prox2 < PROX_THRESHOLD || !colorSort)
+    {
         return BallColor::Unknown;
     }
 
@@ -101,17 +103,17 @@ BallColor identifyColor() {
     double hue2 = optical2.get_hue();
 
     // if (RED_RANGE.contains(hue1) || RED_RANGE.contains(hue2)) {
-    if (RED_RANGE.contains(hue2)) {
+    if (RED_RANGE.contains(hue2))
+    {
         return BallColor::Red;
     }
     // if (BLUE_RANGE.contains(hue1) || BLUE_RANGE.contains(hue2)) {
-    if (BLUE_RANGE.contains(hue2)) {
+    if (BLUE_RANGE.contains(hue2))
+    {
         return BallColor::Blue;
     }
     return BallColor::Unknown;
 }
-
-
 
 void colorSortTask()
 {
@@ -150,29 +152,37 @@ enum class Auton
     Skills
 };
 
-std::unordered_map<int, Auton> createAutonMap() {
+std::unordered_map<int, Auton> createAutonMap()
+{
     return {
         {1, Auton::AWP},
         {2, Auton::Left},
         {3, Auton::Right},
         {4, Auton::LeftElim},
         {5, Auton::RightElim},
-        {6, Auton::Skills}
-    };
+        {6, Auton::Skills}};
 }
 
-const char* autonToString(Auton auton) {
-    switch (auton) {
-        case Auton::AWP:       return "AWP";
-        case Auton::Left:      return "Left";
-        case Auton::Right:     return "Right";
-        case Auton::LeftElim:  return "LeftElim";
-        case Auton::RightElim: return "RightElim";
-        case Auton::Skills:    return "Skills";
-        default:               return "Unknown";
+const char *autonToString(Auton auton)
+{
+    switch (auton)
+    {
+    case Auton::AWP:
+        return "AWP";
+    case Auton::Left:
+        return "Left";
+    case Auton::Right:
+        return "Right";
+    case Auton::LeftElim:
+        return "LeftElim";
+    case Auton::RightElim:
+        return "RightElim";
+    case Auton::Skills:
+        return "Skills";
+    default:
+        return "Unknown";
     }
 }
-
 
 std::unordered_map<int, Auton> autonMap = createAutonMap();
 
@@ -198,48 +208,67 @@ void handleL1Press()
 }
 
 void handleR1Press()
-{ currentMode = (currentMode == Mode::ScoreTop) ? Mode::Idle : Mode::ScoreTop; }
+{
+    currentMode = (currentMode == Mode::ScoreTop) ? Mode::Idle : Mode::ScoreTop;
+}
 
 void handleR2Press()
-{ currentMode = (currentMode == Mode::ScoreMid) ? Mode::Idle : Mode::ScoreMid; }
+{
+    currentMode = (currentMode == Mode::ScoreMid) ? Mode::Idle : Mode::ScoreMid;
+}
 
 void handleBPress()
-{ currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow; }
+{
+    currentMode = (currentMode == Mode::ScoreLow) ? Mode::Idle : Mode::ScoreLow;
+}
 
 void handleRightPress()
-{ currentMode = (currentMode == Mode::BottomLoad) ? Mode::Idle : Mode::BottomLoad; }
+{
+    currentMode = (currentMode == Mode::BottomLoad) ? Mode::Idle : Mode::BottomLoad;
+}
 
-void handleLeftPress(){ 
+void handleLeftPress()
+{
     colorSort = !colorSort;
     controller.rumble(".");
 }
 
 void handleL2Held(bool pressed)
 {
-    if (pressed) currentMode = Mode::Unjam;
-    else if (currentMode == Mode::Unjam) currentMode = Mode::Idle;
+    if (pressed)
+        currentMode = Mode::Unjam;
+    else if (currentMode == Mode::Unjam)
+        currentMode = Mode::Idle;
 }
 
-int autonCount = 1;
+int autonCount = 2;
 
-void on_center_button() {
+void on_center_button()
+{
     autonCount += 1;
-    if (autonCount == 7){
+    if (autonCount == 7)
+    {
         autonCount = 1;
     }
 }
 
-void on_right_button() {
+void on_right_button()
+{
     autonCount -= 1;
-    if (autonCount == 0){
+    if (autonCount == 0)
+    {
         autonCount = 6;
     }
 }
 
-void on_left_button() {
-    if (targetColor == BallColor::Red) {
+void on_left_button()
+{
+    if (targetColor == BallColor::Red)
+    {
         targetColor = BallColor::Blue;
-    } else {
+    }
+    else
+    {
         targetColor = BallColor::Red;
     }
 }
@@ -275,7 +304,8 @@ void intakeControl()
             break;
 
         case Mode::IntakeToBasket:
-            if (ballColor == targetColor) {
+            if (ballColor == targetColor)
+            {
                 currentMode = Mode::ejectBall;
                 break;
             }
@@ -299,7 +329,7 @@ void intakeControl()
 
         case Mode::ScoreMid:
             basketRoller.move_velocity(600);
-            firstStageIntake.move_velocity(600);
+            firstStageIntake.move_velocity(100);
             hood.move_velocity(-600);
             basketExtended = true;
             basket.set_value(basketExtended);
@@ -368,8 +398,10 @@ void pneumaticControl()
     }
 }
 
-void displayStatusTask() {
-    while (true) {
+void displayStatusTask()
+{
+    while (true)
+    {
         controller.set_text(0, 0, colorSort ? "Color Sort: ON " : "Color Sort: OFF");
         pros::delay(20);
     }
@@ -377,20 +409,106 @@ void displayStatusTask() {
 
 void AWP()
 {
-    chassis.setPose({0, 0, 0});
-    chassis.moveToPoint(0, 24, 3000);
+    // AWP code
 }
 
 void left()
 {
-    chassis.setPose({0, 0, 0});
-    chassis.moveToPoint(24, 0, 3000);
+    // leftSafe, 3 mid goal + 4 top goal
+    pros::Task intake_task(intakeControl);
+    pros::Task color_task(colorSortTask);
+    chassis.setPose(-48, 13, 90);
+
+    // start intake
+    currentMode = Mode::IntakeToBasket;
+
+    // move to 3 block stack
+    chassis.moveToPoint(-24, 20, 1000, {.maxSpeed=70, .earlyExitRange = 4});
+    // // move to 2 ball stack
+    // chassis.moveToPose(-8, 38, 0, 2000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed=90, .earlyExitRange=2}, false);
+    // matchload.set_value(true);
+    // currentMode = Mode::Idle;
+    // chassis.moveToPoint(-8, 44, 800, {});
+    // chassis.moveToPoint(-24, 20, 1000, {.forwards=false});
+    // currentMode = Mode::IntakeToBasket;
+    // move towards goal
+    chassis.moveToPose(-6, 6, 135, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15});
+
+    // scoring
+    chassis.waitUntil(5);
+    matchload.set_value(true);
+    chassis.waitUntilDone();
+    pros::delay(1000);
+
+    currentMode = Mode::ScoreMid;
+    pros::delay(900);
+
+    // stop scoring and back out
+    currentMode = Mode::Idle;
+    pros::delay(500);
+    chassis.moveToPoint(-33, 26, 1000, {.forwards = false, .earlyExitRange = 6}, false);
+
+    // line up with matchload
+    chassis.moveToPose(-47, 49, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+
+    // start matchload and drive into matchload
+    matchload.set_value(true);
+    currentMode = Mode::IntakeToBasket;
+    chassis.moveToPose(-64.5, 48, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    leftMotors.move_velocity(300);
+    rightMotors.move_velocity(300);
+
+    // stop matchload
+    pros::delay(3000);
+    chassis.setPose(-64.5, 48, chassis.getPose().theta);
+    matchload.set_value(false);
+    chassis.moveToPoint(-50, 48, 1000, {.forwards = false, .earlyExitRange = 2}, false);
+    chassis.moveToPose(-18, 48, 90, 3000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
+    currentMode = Mode::ScoreTop;
 }
 
 void right()
 {
-    chassis.setPose({0, 0, 0});
-    chassis.moveToPoint(-24, 0, 3000);
+    // rightSafe, 3 mid goal + 4 top goal
+    pros::Task intake_task(intakeControl);
+    chassis.setPose(-48, -13, 90); // y flipped
+
+    // start intake
+    currentMode = Mode::IntakeToBasket;
+
+    // move to 3 block stack
+    chassis.moveToPoint(-25.5, -25.5, 1000, {.earlyExitRange = 2});
+
+    // move towards goal
+    chassis.moveToPose(-10, -10, 135, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15}, false);
+
+    // scoring
+    currentMode = Mode::ScoreLow;
+    pros::delay(2000);
+
+    // stop scoring and back out
+    currentMode = Mode::Idle;
+    chassis.moveToPoint(-30, -30, 1000, {.forwards = false, .earlyExitRange = 2});
+
+    // line up with matchload
+    chassis.moveToPose(-40, -47, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+
+    // start matchload and drive into matchload
+    matchload.set_value(true);
+    currentMode = Mode::IntakeToBasket;
+    chassis.moveToPose(-57, -47, 270, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15}, false);
+
+    // stop matchload
+    pros::delay(2000);
+    chassis.moveToPoint(-40, -47, 1000, {.forwards = false, .earlyExitRange = 2}, false);
+
+    // raise matchload
+    matchload.set_value(false);
+    chassis.moveToPose(-27, -47, 90, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15});
+
+    currentMode = Mode::ScoreTop;
+    // score top goal
 }
 
 void leftElim()
@@ -415,8 +533,8 @@ void initialize()
 {
     pros::lcd::initialize();
     pros::lcd::register_btn1_cb(on_center_button);
-    pros::lcd::register_btn2_cb(on_left_button); 
-    pros::lcd::register_btn0_cb(on_right_button); 
+    pros::lcd::register_btn2_cb(on_left_button);
+    pros::lcd::register_btn0_cb(on_right_button);
     controller.clear();
     // optical.set_led_pwm(100);
     optical2.set_led_pwm(100);
@@ -444,32 +562,50 @@ void initialize()
 
 void disabled() {}
 void competition_initialize() {}
-void autonomous() {
+void autonomous()
+{
     auto it = autonMap.find(autonCount);
     Auton selected = (it != autonMap.end()) ? it->second : Auton::AWP;
 
-    switch (selected) {
-        case Auton::AWP:       AWP();       break;
-        case Auton::Left:      left();      break;
-        case Auton::Right:     right();     break;
-        case Auton::LeftElim:  leftElim();  break;
-        case Auton::RightElim: rightElim(); break;
-        case Auton::Skills:    skills();    break;
-        default:               AWP();       break;
+    switch (selected)
+    {
+    case Auton::AWP:
+        AWP();
+        break;
+    case Auton::Left:
+        left();
+        break;
+    case Auton::Right:
+        right();
+        break;
+    case Auton::LeftElim:
+        leftElim();
+        break;
+    case Auton::RightElim:
+        rightElim();
+        break;
+    case Auton::Skills:
+        skills();
+        break;
+    default:
+        AWP();
+        break;
     }
 }
 
-void opcontrol() {
+void opcontrol()
+{
     pros::Task intake_task(intakeControl);
     pros::Task toggle_task(toggleTask);
     pros::Task pneumatic_task(pneumaticControl);
     pros::Task color_task(colorSortTask);
     pros::Task displayTask(displayStatusTask);
 
-    while (true) {
-        int leftY  = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+    while (true)
+    {
+        int leftY = controller.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
         int rightY = controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_Y);
-        
+
         chassis.tank(leftY, rightY);
 
         pros::delay(10);
