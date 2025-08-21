@@ -21,7 +21,7 @@ lemlib::Drivetrain drivetrain(&leftMotors,
                               2 // horizontal drift
 );
 
-lemlib::ControllerSettings linearController(5.4, // kP
+lemlib::ControllerSettings linearController(5.05, // kP
                                             0,   // kI
                                             2,   // kD
                                             3,   // anti windup
@@ -32,7 +32,7 @@ lemlib::ControllerSettings linearController(5.4, // kP
                                             20   // maximum acceleration (slew)
 );
 
-lemlib::ControllerSettings angularController(1.04, // kP
+lemlib::ControllerSettings angularController(1.07, // kP
                                              0,    // kI
                                              6,    // kD
                                              0,    // anti windup
@@ -43,7 +43,10 @@ lemlib::ControllerSettings angularController(1.04, // kP
                                              0     // maximum acceleration (slew)
 );
 
-lemlib::OdomSensors sensors(nullptr, // vertical tracking wheel
+pros::Rotation vertical_encoder(8);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_encoder, 2, -0.25);
+
+lemlib::OdomSensors sensors(&vertical_tracking_wheel, // vertical tracking wheel
                             nullptr,
                             nullptr, // horizontal tracking wheel
                             nullptr,
@@ -410,6 +413,8 @@ void displayStatusTask()
 void AWP()
 {
     // AWP code
+    chassis.setPose(0,0,0);
+    chassis.turnToHeading(90, 2000);
 }
 
 void left()
@@ -432,7 +437,7 @@ void left()
     // chassis.moveToPoint(-24, 20, 1000, {.forwards=false});
     // currentMode = Mode::IntakeToBasket;
     // move towards goal
-    chassis.moveToPose(-6, 6, 135, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15});
+    chassis.moveToPose(-9, 5, 135, 1000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed = 65, .minSpeed = 15});
 
     // scoring
     chassis.waitUntil(5);
@@ -441,7 +446,7 @@ void left()
     pros::delay(1000);
 
     currentMode = Mode::ScoreMid;
-    pros::delay(900);
+    pros::delay(800);
 
     // stop scoring and back out
     currentMode = Mode::Idle;
@@ -449,21 +454,21 @@ void left()
     chassis.moveToPoint(-33, 26, 1000, {.forwards = false, .earlyExitRange = 6}, false);
 
     // line up with matchload
-    chassis.moveToPose(-47, 49, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    chassis.moveToPose(-47, 41.7, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
 
     // start matchload and drive into matchload
     matchload.set_value(true);
     currentMode = Mode::IntakeToBasket;
-    chassis.moveToPose(-64.5, 48, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    chassis.moveToPose(-64.5, 41.7, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
     leftMotors.move_velocity(300);
     rightMotors.move_velocity(300);
 
     // stop matchload
     pros::delay(3000);
-    chassis.setPose(-64.5, 48, chassis.getPose().theta);
     matchload.set_value(false);
-    chassis.moveToPoint(-50, 48, 1000, {.forwards = false, .earlyExitRange = 2}, false);
-    chassis.moveToPose(-18, 48, 90, 3000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    chassis.moveToPoint(-50, 41.5, 1000, {.forwards = false, .earlyExitRange = 2}, false);
+    chassis.turnToHeading(90, 1000);
+    chassis.moveToPoint(-18, 41.5, 3000, {}, false);
     chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
     currentMode = Mode::ScoreTop;
 }
@@ -551,7 +556,8 @@ void initialize()
             // pros::lcd::print(3, "Hue Color 1: %f", optical.get_hue());
             pros::lcd::print(3, "Hue Color 2: %f", optical2.get_hue());
             // pros::lcd::print(5, "Proximity 1: %d", optical.get_proximity());
-            pros::lcd::print(4, "Proximity 2: %d", optical2.get_proximity());
+            pros::lcd::print(4, "Rotation Sensor: %i", vertical_encoder.get_position());
+            //pros::lcd::print(4, "Proximity 2: %d", optical2.get_proximity());
             pros::lcd::print(5, "Auton: %s", autonToString(autonMap[autonCount]));
             pros::lcd::set_text(6, targetColor == BallColor::Red ? "blue color" : "red color");
             pros::lcd::print(7, "Ball Color: %s", ballColor == BallColor::Red ? "Red" : (ballColor == BallColor::Blue ? "Blue" : "Unknown"));
