@@ -128,7 +128,7 @@ void colorSortTask()
 }
 
 pros::ADIDigitalOut basket('A');
-bool basketExtended = false;
+bool basketExtended = true;
 
 pros::ADIDigitalOut matchload('B');
 bool matchloadOn = false;
@@ -139,6 +139,7 @@ enum class Mode
     IntakeToBasket,
     ScoreTop,
     ScoreMid,
+    ScoreMidAuton,
     ScoreLow,
     Unjam,
     BottomLoad,
@@ -314,8 +315,8 @@ void intakeControl()
             }
             firstStageIntake.move_velocity(600);
             hood.move_velocity(600);
-            basketRoller.brake();
-            basketExtended = false;
+            basketRoller.move_velocity(300 * sin(pros::millis() / 100));
+            basketExtended = true;
             basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
             break;
@@ -325,16 +326,25 @@ void intakeControl()
             basketRoller.move_velocity(600);
             hood.move_velocity(600);
             pros::delay(250);
-            basketExtended = true;
+            basketExtended = false;
             basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
             break;
 
         case Mode::ScoreMid:
             basketRoller.move_velocity(600);
-            firstStageIntake.move_velocity(100);
+            firstStageIntake.move_velocity(200);
+            hood.move_velocity(-300);
+            basketExtended = false;
+            basket.set_value(basketExtended);
+            chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
+            break;
+        
+        case Mode::ScoreMidAuton:
+            basketRoller.brake();
+            firstStageIntake.move_velocity(600);
             hood.move_velocity(-600);
-            basketExtended = true;
+            basketExtended = false;
             basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
             break;
@@ -343,8 +353,6 @@ void intakeControl()
             basketRoller.move_velocity(600);
             firstStageIntake.move_velocity(-400);
             hood.move_velocity(0);
-            basketExtended = true;
-            basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
             break;
 
@@ -352,7 +360,7 @@ void intakeControl()
             basketRoller.move_velocity(-600);
             firstStageIntake.move_velocity(-600);
             hood.move_velocity(-600);
-            basketExtended = false;
+            basketExtended = true;
             basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
             break;
@@ -361,8 +369,6 @@ void intakeControl()
             firstStageIntake.move_velocity(600);
             hood.move_velocity(0);
             basketRoller.move_velocity(-600);
-            basketExtended = false;
-            basket.set_value(basketExtended);
             chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
             break;
 
@@ -425,13 +431,12 @@ void left()
     chassis.setPose(-48, 13, 90);
 
     // start intake
-    currentMode = Mode::IntakeToBasket;
+    currentMode = Mode::BottomLoad;
 
     // move to 3 block stack
     chassis.moveToPoint(-24, 20, 1000, {.maxSpeed=70, .earlyExitRange = 4});
     // // move to 2 ball stack
     // chassis.moveToPose(-8, 38, 0, 2000, {.horizontalDrift = 8, .lead = 0.3, .maxSpeed=90, .earlyExitRange=2}, false);
-    // matchload.set_value(true);
     // currentMode = Mode::Idle;
     // chassis.moveToPoint(-8, 44, 800, {});
     // chassis.moveToPoint(-24, 20, 1000, {.forwards=false});
@@ -443,10 +448,10 @@ void left()
     chassis.waitUntil(5);
     matchload.set_value(true);
     chassis.waitUntilDone();
-    pros::delay(1000);
+    pros::delay(1500);
 
-    currentMode = Mode::ScoreMid;
-    pros::delay(800);
+    currentMode = Mode::ScoreMidAuton;
+    pros::delay(900);
 
     // stop scoring and back out
     currentMode = Mode::Idle;
@@ -459,16 +464,16 @@ void left()
     // start matchload and drive into matchload
     matchload.set_value(true);
     currentMode = Mode::IntakeToBasket;
-    chassis.moveToPose(-64.5, 41.7, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
+    chassis.moveToPose(-64.5, 43, 270, 1000, {.horizontalDrift = 8, .lead = 0.3}, false);
     leftMotors.move_velocity(300);
     rightMotors.move_velocity(300);
 
     // stop matchload
     pros::delay(3000);
     matchload.set_value(false);
-    chassis.moveToPoint(-50, 41.5, 1000, {.forwards = false, .earlyExitRange = 2}, false);
+    chassis.moveToPoint(-50, 41, 1000, {.forwards = false, .earlyExitRange = 2}, false);
     chassis.turnToHeading(90, 1000);
-    chassis.moveToPoint(-18, 41.5, 3000, {}, false);
+    chassis.moveToPoint(-25, 41, 1000, {}, false);
     chassis.setBrakeMode(pros::E_MOTOR_BRAKE_HOLD);
     currentMode = Mode::ScoreTop;
 }
